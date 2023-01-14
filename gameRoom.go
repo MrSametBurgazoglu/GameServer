@@ -21,6 +21,7 @@ type GameRoom struct {
 var rooms map[string]*GameRoom
 
 func newGameRoom(key string) *GameRoom {
+	println("room created", key)
 	return &GameRoom{
 		broadcast:  make(chan []byte),
 		register:   make(chan *Client),
@@ -48,6 +49,7 @@ func (gr *GameRoom) close() {
 	close(gr.register)
 	close(gr.unregister)
 	delete(rooms, gr.key)
+	println("room closed")
 }
 
 func (gr *GameRoom) run() {

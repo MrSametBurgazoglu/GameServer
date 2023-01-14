@@ -47,10 +47,15 @@ func (c *Client) readPump() {
 	defer func() {
 		c.room.unregister <- c
 		c.conn.Close()
+		println("cant read")
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
-	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+	c.conn.SetPongHandler(func(string) error {
+		c.conn.SetReadDeadline(time.Now().Add(pongWait))
+		println("server get ping message")
+		return nil
+	})
 	for {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
@@ -60,6 +65,7 @@ func (c *Client) readPump() {
 			break
 		}
 		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
+		println("message come from client", string(message))
 		c.room.broadcast <- message
 	}
 }
@@ -85,6 +91,7 @@ func (c *Client) writePump() {
 				return
 			}
 			w.Write(message)
+			println("message sended to client", message)
 
 			// Add queued chat messages to the current websocket message.
 			n := len(c.send)
@@ -98,6 +105,7 @@ func (c *Client) writePump() {
 			}
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			println("server send ping message")
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
@@ -122,6 +130,7 @@ func joinGameRoom(w http.ResponseWriter, r *http.Request) {
 	gameRoom, ok := rooms[roomID]
 	if ok {
 		client := &Client{room: gameRoom, conn: conn, send: make(chan []byte, 256)}
+		println("client join to room")
 		client.room.register <- client
 		go client.writePump()
 		go client.readPump()
